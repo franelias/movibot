@@ -64,7 +64,7 @@ def parada(update: Update, context: CallbackContext):
         chat_id=update.effective_chat.id, text=colectivos_text)
 
 
-ORIGEN, DESTINO, BUSCAR_COLECTIVOS, SELECCIONAR_INTERSECCION = range(4)
+ORIGEN, DESTINO, CANTIDAD_CUADRAS, SELECCIONAR_INTERSECCION = range(4)
 
 
 def comoLlego(update: Update, context: CallbackContext):
@@ -159,26 +159,36 @@ def comoLlegoDestino(update: Update, context: CallbackContext):
 
     logger.info("Destino: %s", destino["properties"]["name"])
 
-    lol = buscarColectivos(update, context)
+    update.message.reply_text(
+        "Cantidad de cuadras a caminar: ", reply_markup=ReplyKeyboardRemove())
+
+    return CANTIDAD_CUADRAS
+
+
+def cantidadCuadras(update: Update, context: CallbackContext):
+    destino_mensaje = update.message.text
+    context.user_data['cantidad_cuadras'] = destino_mensaje
+
+    colectivos_resultado = buscarColectivos(update, context)
 
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text=lol, reply_markup=ReplyKeyboardRemove())
+        chat_id=update.effective_chat.id, text=colectivos_resultado, reply_markup=ReplyKeyboardRemove())
 
     context.user_data.clear()
-
     return ConversationHandler.END
 
 
 def buscarColectivos(update: Update, context: CallbackContext):
     origen = context.user_data['origen']
     destino = context.user_data['destino']
+    cantidad_cuadras = context.user_data['cantidad_cuadras']
 
     params = {
         "xOrigen": origen["coordenadas"]["longitud"],
         "yOrigen": origen["coordenadas"]["latitud"],
         "xDestino": destino["coordenadas"]["longitud"],
         "yDestino": destino["coordenadas"]["latitud"],
-        "cantCuadras": 8,  # Hardcodeado
+        "cantCuadras": cantidad_cuadras,
         "usarCoordenadasWGS84": "true"
     }
 
@@ -221,6 +231,8 @@ conv_handler = ConversationHandler(
     states={
         ORIGEN: [MessageHandler(Filters.text & ~(Filters.command), comoLlegoOrigen)],
         DESTINO: [MessageHandler(Filters.text & ~(Filters.command), comoLlegoDestino)],
+        CANTIDAD_CUADRAS: [MessageHandler(
+            Filters.text & ~(Filters.command), cantidadCuadras)]
     },
     fallbacks=[CommandHandler('cancelar', cancelar)],
 )
