@@ -4,6 +4,8 @@ import requests
 import logging
 import os
 
+ORIGEN, DESTINO, CANTIDAD_CUADRAS, MAPA = range(4)
+
 
 def start(update: Update, context: CallbackContext):
     context.bot.send_message(
@@ -62,9 +64,6 @@ def parada(update: Update, context: CallbackContext):
 
     context.bot.send_message(
         chat_id=update.effective_chat.id, text=colectivos_text)
-
-
-ORIGEN, DESTINO, CANTIDAD_CUADRAS, SELECCIONAR_INTERSECCION = range(4)
 
 
 def comoLlego(update: Update, context: CallbackContext):
@@ -166,16 +165,22 @@ def comoLlegoDestino(update: Update, context: CallbackContext):
 
 
 def cantidadCuadras(update: Update, context: CallbackContext):
-    destino_mensaje = update.message.text
-    context.user_data['cantidad_cuadras'] = destino_mensaje
+    cantidad_cuadras = update.message.text
 
-    colectivos_resultado = buscarColectivos(update, context)
+    context.user_data['cantidad_cuadras'] = cantidad_cuadras
+
+    colectivos_resultado, paradas_coordenadas, markup = buscarColectivos(
+        update, context)
+
+    context.user_data['paradas_coordenadas'] = paradas_coordenadas
 
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text=colectivos_resultado, reply_markup=ReplyKeyboardRemove())
+        chat_id=update.effective_chat.id, text=colectivos_resultado, reply_markup=markup)
 
-    context.user_data.clear()
-    return ConversationHandler.END
+    context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Si querés ver la ubicación de una de las paradas, seleccionala en el menú.", reply_markup=markup)
+
+    return MAPA
 
 
 def buscarColectivos(update: Update, context: CallbackContext):
@@ -198,20 +203,59 @@ def buscarColectivos(update: Update, context: CallbackContext):
     rutas = calles["rutas"]
     colectivos_text = "Te podés tomar los siguientes colectivos:\n"
 
+    intersecciones = set()
+
+    paradas_coordenadas = {}
+
     for ruta in rutas:
         ruta_colectivo = list(filter(lambda feature: feature["properties"]
                                      ["modo_descripcion"] == "Colectivo", ruta["tramos"]["features"]))
 
+        logger.info(ruta_colectivo)
+
+        nombre_parada = ruta_colectivo[0]["properties"]["desde"]["properties"]["nombre"]
+
+        paradas_coordenadas[nombre_parada] = ruta_colectivo[0]["properties"]["desde"]["coordinates"]
+
         colectivos_text += "• " + \
             ruta["denominacion"] + \
-            f' en {ruta_colectivo[0]["properties"]["desde"]["properties"]["nombre"]}\n'
+            f' en {nombre_parada}\n'
 
-    return colectivos_text
+        intersecciones.add(
+            ruta_colectivo[0]["properties"]["desde"]["properties"]["nombre"])
+
+    reply_keyboard = []
+
+    for interseccion in intersecciones:
+        reply_keyboard.append([interseccion])
+
+    reply_keyboard.append(["/cancelar"])
+
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+    return colectivos_text, paradas_coordenadas, markup
 
 
 def cancelar(update: Update, context: CallbackContext):
     context.bot.send_message(
         chat_id=update.effective_chat.id, text="Cancelado.", reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
+
+
+def buscarUbicacion(update: Update, context: CallbackContext):
+    nombre_parada = update.message.text
+
+    paradas_coordenadas = context.user_data['paradas_coordenadas'][nombre_parada]
+
+    longitud = paradas_coordenadas[0]
+    latitud = paradas_coordenadas[1]
+
+    logger.info(f'latitud: {latitud} longitud: {longitud}')
+
+    context.bot.sendLocation(
+        chat_id=update.effective_chat.id, latitude=latitud, longitude=longitud, reply_markup=ReplyKeyboardRemove())
+
+    context.user_data.clear()
     return ConversationHandler.END
 
 
@@ -232,9 +276,13 @@ conv_handler = ConversationHandler(
         ORIGEN: [MessageHandler(Filters.text & ~(Filters.command), comoLlegoOrigen)],
         DESTINO: [MessageHandler(Filters.text & ~(Filters.command), comoLlegoDestino)],
         CANTIDAD_CUADRAS: [MessageHandler(
-            Filters.text & ~(Filters.command), cantidadCuadras)]
+            Filters.text & ~(Filters.command), cantidadCuadras)],
+        MAPA: [MessageHandler(Filters.text & ~(
+            Filters.command), buscarUbicacion)]
     },
     fallbacks=[CommandHandler('cancelar', cancelar)],
+
+
 )
 
 updater.dispatcher.add_handler(conv_handler)
