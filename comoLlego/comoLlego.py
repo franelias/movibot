@@ -211,7 +211,7 @@ def buscarUbicacion(update: Update, context: CallbackContext):
 
 def finalizarIngreso(update: Update, context: CallbackContext):
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text="", reply_markup=ReplyKeyboardRemove())
+        chat_id=update.effective_chat.id, text="Operación cancelada.", reply_markup=ReplyKeyboardRemove())
 
     context.user_data.clear()
 
