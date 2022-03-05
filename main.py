@@ -186,10 +186,15 @@ def buscarColectivos(update: Update, context: CallbackContext):
         f"{movi_url}/geojson/comollego", params=params).json()
 
     rutas = calles["rutas"]
-    colectivos_text = "Te podes tomar los siguientes colectivos:\n"
+    colectivos_text = "Te podés tomar los siguientes colectivos:\n"
 
     for ruta in rutas:
-        colectivos_text += "• " + ruta["denominacion"] + "\n"
+        ruta_colectivo = list(filter(lambda feature: feature["properties"]
+                                     ["modo_descripcion"] == "Colectivo", ruta["tramos"]["features"]))
+
+        colectivos_text += "• " + \
+            ruta["denominacion"] + \
+            f' en {ruta_colectivo[0]["properties"]["desde"]["properties"]["nombre"]}\n'
 
     return colectivos_text
 
