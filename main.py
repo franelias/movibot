@@ -5,8 +5,13 @@ from telegram import Update
 from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
                           Filters, MessageHandler, Updater)
 
+from comoLlego.comoLlego import (CANTIDAD_CUADRAS, DESTINO, MAPA, ORIGEN,
+                                 buscarUbicacion, comoLlego, finalizarIngreso,
+                                 ingresoCantidadCuadras, ingresoDestino,
+                                 ingresoOrigen)
+from errores.errores import error_handler
+from feedback.feedback import MANDAR, empezarFeedback, enviarFeedback
 from paradas.paradas import parada
-from comoLlego.comoLlego import ORIGEN, DESTINO, CANTIDAD_CUADRAS, MAPA, buscarUbicacion, comoLlego, finalizarIngreso, ingresoCantidadCuadras, ingresoDestino, ingresoOrigen
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -33,24 +38,26 @@ def main():
                 Filters.command), buscarUbicacion)]
         },
         fallbacks=[CommandHandler('cancelar', finalizarIngreso)],
-
-
     )
 
-    updater.dispatcher.add_handler(conv_handler)
+    feedback_handler = ConversationHandler(
+        entry_points=[CommandHandler('feedback', empezarFeedback)],
+        states={
+            MANDAR: [MessageHandler(Filters.text & ~(Filters.command), enviarFeedback)],
+        },
+        fallbacks=[CommandHandler('cancelar', finalizarIngreso)],
+    )
+
     updater.dispatcher.add_handler(CommandHandler('start', start))
     updater.dispatcher.add_handler(CommandHandler('parada', parada))
+    updater.dispatcher.add_handler(conv_handler)
+    updater.dispatcher.add_handler(feedback_handler)
+    updater.dispatcher.add_error_handler(error_handler)
 
-    # Start the Bot
     updater.start_polling()
 
-    # Run the bot until the user presses Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT
     updater.idle()
 
 
 if __name__ == '__main__':
     main()
-
-# TODO:
-# - Añadir error handler
