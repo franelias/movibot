@@ -79,42 +79,47 @@ def buscarCalle(calles: str):
     logger.info(calles)
 
     if not calles["features"]:
-        return None
+        return None, None
 
-    if len(calles["features"]) == 1:
-        if "altura" not in calles["features"][0]["properties"]:
-            return None
+    features = dict()
 
-        return calles["features"][0]
+    teclado_respuestas = []
 
-    reply_keyboard = []
+    for feature in calles["features"]:
+        if feature["properties"]["subtipo"] != "CALLE":
+            nombre = feature["properties"]["name"]
 
-    for calle in calles["features"]:
-        nombre = calle["properties"]["name"]
+            teclado_respuestas.append([nombre])
+            features[nombre] = feature
 
-        reply_keyboard.append([nombre])
+    markup = ReplyKeyboardMarkup(teclado_respuestas, one_time_keyboard=True)
 
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-
-    return markup
+    return markup, features
 
 
 def comoLlegoOrigen(update: Update, context: CallbackContext):
     origen_mensaje = update.message.text
 
-    origen = buscarCalle(origen_mensaje)
+    if not "features_origen" in context.user_data.keys():
+        markup, features = buscarCalle(origen_mensaje)
 
-    if not origen:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id, text="Ingresá dirección y altura:", reply_markup=ReplyKeyboardRemove())
+        if not features:
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, text="No se encontró el lugar de origen. Intentá de nuevo:", reply_markup=ReplyKeyboardRemove())
 
-        return ORIGEN
+            return ORIGEN
 
-    if type(origen) is ReplyKeyboardMarkup:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id, text="Seleccioná un origen:", reply_markup=origen)
+        if len(features) > 1:
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, text="Seleccioná un origen:", reply_markup=markup)
 
-        return ORIGEN
+            context.user_data["features_origen"] = features
+
+            return ORIGEN
+        else:
+            origen = features[list(features.keys())[0]]
+    else:
+        origen = context.user_data["features_origen"][origen_mensaje]
 
     coordenadas = requests.get(
         f'{movi_url}/coordenadaLatLon/{origen["geometry"]["coordinates"][0]}/{origen["geometry"]["coordinates"][1]}/',).json()
@@ -134,19 +139,26 @@ def comoLlegoOrigen(update: Update, context: CallbackContext):
 def comoLlegoDestino(update: Update, context: CallbackContext):
     destino_mensaje = update.message.text
 
-    destino = buscarCalle(destino_mensaje)
+    if not "features_destino" in context.user_data.keys():
+        markup, features = buscarCalle(destino_mensaje)
 
-    if not destino:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id, text="Ingresá dirección y altura:", reply_markup=ReplyKeyboardRemove())
+        if not features:
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, text="No se encontró el lugar de destino. Intentá de nuevo:", reply_markup=ReplyKeyboardRemove())
 
-        return DESTINO
+            return DESTINO
 
-    if type(destino) is ReplyKeyboardMarkup:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id, text="Seleccioná un destino:", reply_markup=destino)
+        if len(features) > 1:
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, text="Seleccioná un destino:", reply_markup=markup)
 
-        return DESTINO
+            context.user_data["features_destino"] = features
+
+            return DESTINO
+        else:
+            destino = features[list(features.keys())[0]]
+    else:
+        destino = context.user_data["features_destino"][destino_mensaje]
 
     coordenadas = requests.get(
         f'{movi_url}/coordenadaLatLon/{destino["geometry"]["coordinates"][0]}/{destino["geometry"]["coordinates"][1]}/',).json()
@@ -239,6 +251,9 @@ def buscarColectivos(update: Update, context: CallbackContext):
 def cancelar(update: Update, context: CallbackContext):
     context.bot.send_message(
         chat_id=update.effective_chat.id, text="Cancelado.", reply_markup=ReplyKeyboardRemove())
+
+    context.user_data.clear()
+
     return ConversationHandler.END
 
 
@@ -295,3 +310,8 @@ updater.start_polling()
 # Run the bot until the user presses Ctrl-C or the process receives SIGINT,
 # SIGTERM or SIGABRT
 updater.idle()
+
+
+# TODO:
+# - Añadir error handler
+# - Separar proyecto por carpetas
