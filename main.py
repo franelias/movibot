@@ -1,5 +1,5 @@
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram.ext import Updater, CommandHandler, CallbackContext, ConversationHandler, MessageHandler, Filters
 import requests
 import logging
 import os
@@ -7,7 +7,7 @@ import os
 
 def start(update: Update, context: CallbackContext):
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text="Hola! Gracias por usar el bot de la Movi. Usa /parada para empezar")
+        chat_id=update.effective_chat.id, text="Hola! Gracias por usar el bot de la Movi. Usa /parada o /comollego para empezar")
 
 
 def parada(update: Update, context: CallbackContext):
@@ -20,11 +20,12 @@ def parada(update: Update, context: CallbackContext):
             chat_id=update.effective_chat.id, text="Parada no especificada.")
         return
 
-    movi_request = requests.get(movi_url, params={"parada": numero_parada})
+    movi_request = requests.get(f"{movi_url}/cuandollega", params={
+                                "parada": numero_parada})
 
     colectivos_json = movi_request.json()
 
-    logger.debug(msg=colectivos_json)
+    logger.info(msg=colectivos_json)
 
     if "error" in colectivos_json:
         if colectivos_json["error"] == "Ha ocurrido un error interno al ejecutar la operación":
@@ -63,6 +64,142 @@ def parada(update: Update, context: CallbackContext):
         chat_id=update.effective_chat.id, text=colectivos_text)
 
 
+ORIGEN, DESTINO, BUSCAR_COLECTIVOS, SELECCIONAR_INTERSECCION = range(4)
+
+
+def comoLlego(update: Update, context: CallbackContext):
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Origen: ")
+
+    return ORIGEN
+
+
+def buscarCalle(calles: str):
+    calles = requests.get(f"{movi_url}/geojson/ubicaciones",
+                          params={"term": calles}).json()
+
+    logger.info(calles)
+
+    if not calles["features"]:
+        return None
+
+    if len(calles["features"]) == 1:
+        if "altura" not in calles["features"][0]["properties"]:
+            return None
+
+        return calles["features"][0]
+
+    reply_keyboard = []
+
+    for calle in calles["features"]:
+        nombre = calle["properties"]["name"]
+
+        reply_keyboard.append([nombre])
+
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+    return markup
+
+
+def comoLlegoOrigen(update: Update, context: CallbackContext):
+    origen_mensaje = update.message.text
+
+    origen = buscarCalle(origen_mensaje)
+
+    if not origen:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Ingresá dirección y altura:", reply_markup=ReplyKeyboardRemove())
+
+        return ORIGEN
+
+    if type(origen) is ReplyKeyboardMarkup:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Seleccioná un origen:", reply_markup=origen)
+
+        return ORIGEN
+
+    coordenadas = requests.get(
+        f'{movi_url}/coordenadaLatLon/{origen["geometry"]["coordinates"][0]}/{origen["geometry"]["coordinates"][1]}/',).json()
+
+    context.user_data['origen'] = {
+        "nombre": origen["properties"]["name"],
+        "coordenadas": coordenadas
+    }
+
+    logger.info("Origen: %s", origen["properties"]["name"])
+
+    update.message.reply_text("Destino: ", reply_markup=ReplyKeyboardRemove())
+
+    return DESTINO
+
+
+def comoLlegoDestino(update: Update, context: CallbackContext):
+    destino_mensaje = update.message.text
+
+    destino = buscarCalle(destino_mensaje)
+
+    if not destino:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Ingresá dirección y altura:", reply_markup=ReplyKeyboardRemove())
+
+        return DESTINO
+
+    if type(destino) is ReplyKeyboardMarkup:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Seleccioná un destino:", reply_markup=destino)
+
+        return DESTINO
+
+    coordenadas = requests.get(
+        f'{movi_url}/coordenadaLatLon/{destino["geometry"]["coordinates"][0]}/{destino["geometry"]["coordinates"][1]}/',).json()
+
+    context.user_data['destino'] = {
+        "nombre": destino["properties"]["name"],
+        "coordenadas": coordenadas
+    }
+
+    logger.info("Destino: %s", destino["properties"]["name"])
+
+    lol = buscarColectivos(update, context)
+
+    context.bot.send_message(
+        chat_id=update.effective_chat.id, text=lol, reply_markup=ReplyKeyboardRemove())
+
+    context.user_data.clear()
+
+    return ConversationHandler.END
+
+
+def buscarColectivos(update: Update, context: CallbackContext):
+    origen = context.user_data['origen']
+    destino = context.user_data['destino']
+
+    params = {
+        "xOrigen": origen["coordenadas"]["longitud"],
+        "yOrigen": origen["coordenadas"]["latitud"],
+        "xDestino": destino["coordenadas"]["longitud"],
+        "yDestino": destino["coordenadas"]["latitud"],
+        "cantCuadras": 8,  # Hardcodeado
+        "usarCoordenadasWGS84": "true"
+    }
+
+    calles = requests.get(
+        f"{movi_url}/geojson/comollego", params=params).json()
+
+    rutas = calles["rutas"]
+    colectivos_text = "Te podes tomar los siguientes colectivos:\n"
+
+    for ruta in rutas:
+        colectivos_text += "• " + ruta["denominacion"] + "\n"
+
+    return colectivos_text
+
+
+def cancelar(update: Update, context: CallbackContext):
+    context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Cancelado.", reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -74,8 +211,16 @@ movi_url = os.getenv("MOVI_URL", default="")
 
 updater = Updater(token=telegram_token, use_context=True)
 
-dispatcher = updater.dispatcher
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler('comollego', comoLlego)],
+    states={
+        ORIGEN: [MessageHandler(Filters.text & ~(Filters.command), comoLlegoOrigen)],
+        DESTINO: [MessageHandler(Filters.text & ~(Filters.command), comoLlegoDestino)],
+    },
+    fallbacks=[CommandHandler('cancelar', cancelar)],
+)
 
+updater.dispatcher.add_handler(conv_handler)
 updater.dispatcher.add_handler(CommandHandler('start', start))
 updater.dispatcher.add_handler(CommandHandler('parada', parada))
 
