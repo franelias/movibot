@@ -24,8 +24,8 @@ def error_handler(update: object, context: CallbackContext) -> None:
         f'Ocurrió un error al handlear una update:\n'
         f'<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}'
         '</pre>\n\n'
-        f'<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n'
-        f'<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n'
+        # f'<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n'
+        # f'<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n'
         f'<pre>{html.escape(tb_string)}</pre>'
     )
 
@@ -34,3 +34,6 @@ def error_handler(update: object, context: CallbackContext) -> None:
 
     context.bot.send_message(chat_id=update.effective_chat.id,
                              text="Ups! Ocurrió un error de nuestro lado, intentá nuevamente.")
+
+# BUGS
+# - Algunos mensajes de errores no se pueden mandar de lo largo que son

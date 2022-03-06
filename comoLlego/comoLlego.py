@@ -216,3 +216,6 @@ def finalizarIngreso(update: Update, context: CallbackContext):
     context.user_data.clear()
 
     return ConversationHandler.END
+
+# BUGS:
+# - En los pasos de seleccionar un origen/destino de la lista, si ponés uno que no estaba en la lista, se rompe

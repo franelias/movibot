@@ -13,6 +13,8 @@ def dataParada(numero_parada: int, nombre_colectivo: str = None):
     data = requests.get(f"{movi_url}/cuandollega", params={
         "parada": numero_parada}).json()
 
+    logger.info(data)
+
     if "error" in data:
         if data["error"] == "Ha ocurrido un error interno al ejecutar la operación":
             return "Error interno."
@@ -58,6 +60,13 @@ def parada(update: Update, context: CallbackContext):
     except:
         context.bot.send_message(
             chat_id=update.effective_chat.id, text="Parada no especificada. Usá /parada <nro de parada>")
+        return
+
+    try:
+        numero_parada = int(numero_parada)
+    except:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Número de parada inválido.")
         return
 
     colectivos_mensaje = dataParada(numero_parada)

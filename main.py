@@ -23,7 +23,7 @@ telegram_token = os.getenv("TELEGRAM_TOKEN", default="")
 
 def start(update: Update, context: CallbackContext):
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text="Hola! Gracias por usar el bot de la Movi. Usa /cuandollega, /comollego o /parada para empezar")
+        chat_id=update.effective_chat.id, text="Hola! Gracias por usar el bot de la Movi.\n Los siguientes comandos están disponibles:\n• /cuandollega\n •/comollego\n •/parada <nro de parada>")
 
 
 def main():

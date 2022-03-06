@@ -30,9 +30,15 @@ def cuandoLlega(update: Update, context: CallbackContext):
 
 
 def buscarParadas(update: Update, context: CallbackContext):
-    nombre_colectivo = update.message.text
+    nombre_colectivo = update.message.text.upper()
 
     context.user_data["colectivo_seleccionado"] = nombre_colectivo
+
+    if nombre_colectivo not in context.user_data.keys():
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Línea invalida. Por favor, seleccioná una del menú.")
+
+        return PARADA
 
     colectivo_data = context.user_data[nombre_colectivo]
 
@@ -54,7 +60,13 @@ def buscarParadas(update: Update, context: CallbackContext):
 
 
 def colectivoEnParada(update: Update, context: CallbackContext):
-    nombre_parada = update.message.text
+    nombre_parada = update.message.text.upper()
+
+    if nombre_parada not in context.user_data.keys():
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Parada invalida. Por favor, seleccioná una del menú.")
+
+        return DETALLES
 
     parada_data = context.user_data[nombre_parada]
 
