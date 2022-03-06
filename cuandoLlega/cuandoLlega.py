@@ -15,7 +15,7 @@ def cuandoLlega(update: Update, context: CallbackContext):
     colectivos = requests.get(f"{movi_url}/lineas",
                               params={"nombre": "all"}).json()
 
-    teclado_colectivos = []
+    teclado_colectivos = [["/cancelar"]]
 
     for colectivo in colectivos:
         context.user_data[colectivo["nombre"]] = colectivo
@@ -45,7 +45,7 @@ def buscarParadas(update: Update, context: CallbackContext):
     detalles_colectivo = requests.get(
         f'{movi_url}/linea/{colectivo_data["idEmpresa"]}/{colectivo_data["id"]}').json()
 
-    teclado_paradas = []
+    teclado_paradas = [["/cancelar"]]
 
     for parada in detalles_colectivo["paradas"]:
         context.user_data[parada["nombre"]] = parada

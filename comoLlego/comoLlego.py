@@ -21,7 +21,7 @@ def buscarCalle(calles: str):
 
     features = dict()
 
-    teclado_respuestas = []
+    teclado_respuestas = [["/cancelar"]]
 
     for feature in calles["features"]:
         if feature["properties"]["subtipo"] != "CALLE":
@@ -76,12 +76,10 @@ def buscarColectivos(update: Update, context: CallbackContext):
         intersecciones.add(
             ruta_colectivo[0]["properties"]["desde"]["properties"]["nombre"])
 
-    reply_keyboard = []
+    reply_keyboard = [["/cancelar"]]
 
     for interseccion in intersecciones:
         reply_keyboard.append([interseccion])
-
-    reply_keyboard.append(["/cancelar"])
 
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
