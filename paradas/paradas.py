@@ -3,8 +3,9 @@ import os
 
 import requests
 from telegram import Update
-from telegram.ext import CallbackContext
+from telegram.ext import CallbackContext, ConversationHandler
 
+BUSCAR_PARADA = range(1)
 movi_url = os.getenv("MOVI_URL", default="")
 logger = logging.getLogger(__name__)
 
@@ -16,10 +17,7 @@ def dataParada(numero_parada: int, nombre_colectivo: str = None):
     logger.info(data)
 
     if "error" in data:
-        if data["error"] == "Ha ocurrido un error interno al ejecutar la operación":
-            return "Error interno."
-        else:
-            return "Parada inexistente."
+        return "Hubo un error al comunicarse con el servidor Movi."
 
     if not data:
         return "No hay servicios por la zona."
@@ -31,7 +29,7 @@ def dataParada(numero_parada: int, nombre_colectivo: str = None):
         if not data:
             return "No hay servicios por la zona."
 
-    colectivos_text = ""
+    colectivos_text = f"Parada {numero_parada}\n"
 
     for colectivo in data:
         if colectivo["linea"]["nombre"] == "K" or colectivo["linea"]["nombre"] == "Q":
@@ -53,23 +51,28 @@ def dataParada(numero_parada: int, nombre_colectivo: str = None):
 
 
 def parada(update: Update, context: CallbackContext):
-    mensaje_texo = ' '.join(update.message.text.split())
+    context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Ingresá el número de parada:")
 
-    try:
-        numero_parada = mensaje_texo.split(" ")[1]
-    except:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id, text="Parada no especificada. Usá /parada <nro de parada>")
-        return
+    return BUSCAR_PARADA
+
+
+def buscarParada(update: Update, context: CallbackContext):
+    numero_parada = update.message.text
 
     try:
         numero_parada = int(numero_parada)
     except:
         context.bot.send_message(
             chat_id=update.effective_chat.id, text="Número de parada inválido.")
-        return
+
+        context.user_data.clear()
+        return ConversationHandler.END
 
     colectivos_mensaje = dataParada(numero_parada)
 
     context.bot.send_message(
         chat_id=update.effective_chat.id, text=colectivos_mensaje)
+
+    context.user_data.clear()
+    return ConversationHandler.END

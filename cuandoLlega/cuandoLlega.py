@@ -60,7 +60,7 @@ def buscarParadas(update: Update, context: CallbackContext):
 
 
 def colectivoEnParada(update: Update, context: CallbackContext):
-    nombre_parada = update.message.text.upper()
+    nombre_parada = update.message.text
 
     if nombre_parada not in context.user_data.keys():
         context.bot.send_message(
@@ -78,3 +78,5 @@ def colectivoEnParada(update: Update, context: CallbackContext):
 
     context.user_data.clear()
     return ConversationHandler.END
+
+# TODO: Agregar descripción a las paradas que se repiten

@@ -11,8 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 def buscarCalle(calles: str):
-    calles = requests.get(f"{movi_url}/geojson/ubicaciones",
-                          params={"term": calles}).json()
+    try:
+        calles = requests.get(f"{movi_url}/geojson/ubicaciones",
+                              params={"term": calles}).json()
+    except:
+        return None, None
 
     logger.info(calles)
 
@@ -49,8 +52,11 @@ def buscarColectivos(update: Update, context: CallbackContext):
         "usarCoordenadasWGS84": "true"
     }
 
-    calles = requests.get(
-        f"{movi_url}/geojson/comollego", params=params).json()
+    try:
+        calles = requests.get(
+            f"{movi_url}/geojson/comollego", params=params).json()
+    except:
+        None, None, None
 
     rutas = calles["rutas"]
     colectivos_text = "Te podés tomar los siguientes colectivos:\n"
@@ -95,7 +101,18 @@ def comoLlego(update: Update, context: CallbackContext):
 def ingresoOrigen(update: Update, context: CallbackContext):
     origen_mensaje = update.message.text
 
-    if not "features_origen" in context.user_data.keys():
+    if "features" in context.user_data.keys():
+        if origen_mensaje not in context.user_data["features"].keys():
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="No se encontró el lugar de origen. Intentá de nuevo:", reply_markup=ReplyKeyboardRemove())
+
+            context.user_data.clear()
+
+            return ORIGEN
+
+        origen = context.user_data["features"][origen_mensaje]
+
+    else:
         markup, features = buscarCalle(origen_mensaje)
 
         if not features:
@@ -105,19 +122,27 @@ def ingresoOrigen(update: Update, context: CallbackContext):
             return ORIGEN
 
         if len(features) > 1:
-            context.bot.send_message(
-                chat_id=update.effective_chat.id, text="Seleccioná un origen:", reply_markup=markup)
+            context.user_data["features"] = features
 
-            context.user_data["features_origen"] = features
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="Elegí un origen de la lista:", reply_markup=markup)
 
             return ORIGEN
         else:
             origen = features[list(features.keys())[0]]
-    else:
-        origen = context.user_data["features_origen"][origen_mensaje]
 
-    coordenadas = requests.get(
-        f'{movi_url}/coordenadaLatLon/{origen["geometry"]["coordinates"][0]}/{origen["geometry"]["coordinates"][1]}/',).json()
+    logger.info(origen)
+
+    try:
+        coordenadas = requests.get(
+            f'{movi_url}/coordenadaLatLon/{origen["geometry"]["coordinates"][0]}/{origen["geometry"]["coordinates"][1]}/').json()
+
+    except:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Hubo un error al comunicarse con el servidor Movi.", reply_markup=ReplyKeyboardRemove())
+
+        context.user_data.clear()
+        return ConversationHandler.END
 
     context.user_data['origen'] = {
         "nombre": origen["properties"]["name"],
@@ -134,7 +159,18 @@ def ingresoOrigen(update: Update, context: CallbackContext):
 def ingresoDestino(update: Update, context: CallbackContext):
     destino_mensaje = update.message.text
 
-    if not "features_destino" in context.user_data.keys():
+    if "features_destino" in context.user_data.keys():
+        if destino_mensaje not in context.user_data["features_destino"].keys():
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="No se encontró el lugar de destino. Intentá de nuevo:", reply_markup=ReplyKeyboardRemove())
+
+            context.user_data.clear()
+
+            return DESTINO
+
+        destino = context.user_data["features_destino"][destino_mensaje]
+
+    else:
         markup, features = buscarCalle(destino_mensaje)
 
         if not features:
@@ -144,19 +180,33 @@ def ingresoDestino(update: Update, context: CallbackContext):
             return DESTINO
 
         if len(features) > 1:
-            context.bot.send_message(
-                chat_id=update.effective_chat.id, text="Seleccioná un destino:", reply_markup=markup)
-
             context.user_data["features_destino"] = features
+
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="Elegí un destino de la lista:", reply_markup=markup)
 
             return DESTINO
         else:
             destino = features[list(features.keys())[0]]
-    else:
-        destino = context.user_data["features_destino"][destino_mensaje]
 
-    coordenadas = requests.get(
-        f'{movi_url}/coordenadaLatLon/{destino["geometry"]["coordinates"][0]}/{destino["geometry"]["coordinates"][1]}/',).json()
+    logger.info(destino)
+    logger.info(destino["geometry"]["coordinates"])
+
+    try:
+        if len(destino["geometry"]["coordinates"]) > 1:
+            coordenadas_destino = destino["geometry"]["coordinates"][0]
+        else:
+            coordenadas_destino = destino["geometry"]["coordinates"]
+
+        coordenadas = requests.get(
+            f'{movi_url}/coordenadaLatLon/{coordenadas_destino[0]}/{coordenadas_destino[1]}/').json()
+
+    except:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Hubo un error al comunicarse con el servidor Movi.", reply_markup=ReplyKeyboardRemove())
+
+        context.user_data.clear()
+        return ConversationHandler.END
 
     context.user_data['destino'] = {
         "nombre": destino["properties"]["name"],
@@ -178,6 +228,13 @@ def ingresoCantidadCuadras(update: Update, context: CallbackContext):
 
     colectivos_resultado, paradas_coordenadas, markup = buscarColectivos(
         update, context)
+
+    if not colectivos_resultado or not paradas_coordenadas or not markup:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Hubo un error al comunicarse con el servidor Movi.", reply_markup=ReplyKeyboardRemove())
+
+        context.user_data.clear()
+        return ConversationHandler.END
 
     context.user_data['paradas_coordenadas'] = paradas_coordenadas
 
@@ -214,6 +271,3 @@ def finalizarIngreso(update: Update, context: CallbackContext):
     context.user_data.clear()
 
     return ConversationHandler.END
-
-# BUGS:
-# - En los pasos de seleccionar un origen/destino de la lista, si ponés uno que no estaba en la lista, se rompe

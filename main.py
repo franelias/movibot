@@ -13,7 +13,7 @@ from cuandoLlega.cuandoLlega import (DETALLES, PARADA, buscarParadas,
                                      colectivoEnParada, cuandoLlega)
 from errores.errores import error_handler
 from feedback.feedback import MANDAR, empezarFeedback, enviarFeedback
-from paradas.paradas import parada
+from paradas.paradas import BUSCAR_PARADA, buscarParada, parada
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -23,11 +23,19 @@ telegram_token = os.getenv("TELEGRAM_TOKEN", default="")
 
 def start(update: Update, context: CallbackContext):
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text="Hola! Gracias por usar el bot de la Movi.\n Los siguientes comandos están disponibles:\n• /cuandollega\n •/comollego\n •/parada <nro de parada>")
+        chat_id=update.effective_chat.id, text="Hola! Gracias por usar el bot de la Movi.\n Los siguientes comandos están disponibles:\n• /cuandollega\n •/comollego\n •/parada")
 
 
 def main():
     updater = Updater(token=telegram_token, use_context=True)
+
+    parada_handler = ConversationHandler(
+        entry_points=[CommandHandler('parada', parada)],
+        states={
+            BUSCAR_PARADA: [MessageHandler(Filters.text & ~(Filters.command), buscarParada)],
+        },
+        fallbacks=[CommandHandler('cancelar', finalizarIngreso)],
+    )
 
     comollego_handler = ConversationHandler(
         entry_points=[CommandHandler('comollego', comoLlego)],
@@ -60,7 +68,7 @@ def main():
     )
 
     updater.dispatcher.add_handler(CommandHandler('start', start))
-    updater.dispatcher.add_handler(CommandHandler('parada', parada))
+    updater.dispatcher.add_handler(parada_handler)
     updater.dispatcher.add_handler(cuandollega_handler)
     updater.dispatcher.add_handler(comollego_handler)
     updater.dispatcher.add_handler(feedback_handler)
@@ -73,3 +81,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# TODO:
+# - Handlear status no 200 del sv
