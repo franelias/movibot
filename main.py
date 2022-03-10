@@ -74,14 +74,7 @@ def main():
     updater.dispatcher.add_handler(feedback_handler)
     updater.dispatcher.add_error_handler(error_handler)
 
-    # updater.start_polling()
-
-    PORT = int(os.environ.get('PORT', 5000))
-    updater.start_webhook(listen="0.0.0.0",
-                          port=int(PORT),
-                          url_path=telegram_token)
-    updater.bot.setWebhook(
-        'https://movi-bot.herokuapp.com/' + telegram_token)
+    updater.start_polling()
 
     updater.idle()
 
