@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 import requests
 from telegram import Update
@@ -17,7 +18,12 @@ def dataParada(numero_parada: int, nombre_colectivo: str = None):
     logger.info(data)
 
     if "error" in data:
-        return "Hubo un error al comunicarse con el servidor Movi."
+        time.sleep(2)
+        data = requests.get(f"{movi_url}/cuandollega", params={
+            "parada": numero_parada}).json()
+
+        if "error" in data:
+            return "Hubo un error al comunicarse con el servidor Movi."
 
     if not data:
         return "No hay servicios por la zona."

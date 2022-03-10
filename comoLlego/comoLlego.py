@@ -189,17 +189,10 @@ def ingresoDestino(update: Update, context: CallbackContext):
         else:
             destino = features[list(features.keys())[0]]
 
-    logger.info(destino)
-    logger.info(destino["geometry"]["coordinates"])
-
     try:
-        if len(destino["geometry"]["coordinates"]) > 1:
-            coordenadas_destino = destino["geometry"]["coordinates"][0]
-        else:
-            coordenadas_destino = destino["geometry"]["coordinates"]
 
         coordenadas = requests.get(
-            f'{movi_url}/coordenadaLatLon/{coordenadas_destino[0]}/{coordenadas_destino[1]}/').json()
+            f'{movi_url}/coordenadaLatLon/{destino["geometry"]["coordinates"][0]}/{destino["geometry"]["coordinates"][1]}/').json()
 
     except:
         context.bot.send_message(
