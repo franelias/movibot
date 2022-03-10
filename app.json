@@ -1,0 +1,28 @@
+{
+  "name": "MoviBot",
+  "description": "Bot de Telegram para la Movi.",
+  "image": "heroku/python",
+  "repository": "https://github.com/franelias/movibot",
+  "keywords": ["python", "movi"],
+  "env": {
+    "TELEGRAM_TOKEN": {
+      "description": "Telegram token.",
+      "generator": "secret"
+    },
+    "DEV_CHAT_ID": {
+      "description": "Developer chat ID.",
+      "generator": "secret"
+    },
+    "MOVI_URL": {
+      "description": "Movi URL.",
+      "generator": "secret"
+    }
+  },
+  "environments": {
+    "production": {
+      "scripts": {
+        "test": "python main.py"
+      }
+    }
+  }
+}
