@@ -2,6 +2,7 @@ import logging
 import os
 
 import requests
+from comoLlego.comoLlego import borrarConParada
 from paradas.paradas import dataParada
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import CallbackContext, ConversationHandler
@@ -76,7 +77,7 @@ def colectivoEnParada(update: Update, context: CallbackContext):
     context.bot.send_message(
         chat_id=update.effective_chat.id, text=cuando_llega_parada, reply_markup=ReplyKeyboardRemove())
 
-    context.user_data.clear()
+    borrarConParada(context)
     return ConversationHandler.END
 
 # TODO: Agregar descripción a las paradas que se repiten

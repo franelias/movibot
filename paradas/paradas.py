@@ -6,6 +6,8 @@ import requests
 from telegram import Update
 from telegram.ext import CallbackContext, ConversationHandler
 
+from comoLlego.comoLlego import borrarConParada
+
 BUSCAR_PARADA = range(1)
 movi_url = os.getenv("MOVI_URL", default="")
 logger = logging.getLogger(__name__)
@@ -57,10 +59,46 @@ def dataParada(numero_parada: int, nombre_colectivo: str = None):
 
 
 def parada(update: Update, context: CallbackContext):
+    mensaje_texo = ' '.join(update.message.text.split())
+
+    try:
+        numero_parada = mensaje_texo.split(" ")[1]
+        try:
+            numero_parada = int(numero_parada)
+
+            colectivos_mensaje = dataParada(numero_parada)
+            context.user_data['ultima'] = numero_parada
+
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, text=colectivos_mensaje)
+
+            return ConversationHandler.END
+
+        except:
+            context.bot.send_message(
+                chat_id=update.effective_chat.id, text="Número de parada inválido.")
+
+            return ConversationHandler.END
+    except:
+        pass
+
     context.bot.send_message(
         chat_id=update.effective_chat.id, text="Ingresá el número de parada:")
 
     return BUSCAR_PARADA
+
+
+def ultima(update: Update, context: CallbackContext):
+    if 'ultima' not in context.user_data:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="No hay última parada")
+
+        return
+
+    colectivos_mensaje = dataParada(context.user_data['ultima'])
+
+    context.bot.send_message(
+        chat_id=update.effective_chat.id, text=colectivos_mensaje)
 
 
 def buscarParada(update: Update, context: CallbackContext):
@@ -72,7 +110,7 @@ def buscarParada(update: Update, context: CallbackContext):
         context.bot.send_message(
             chat_id=update.effective_chat.id, text="Número de parada inválido.")
 
-        context.user_data.clear()
+        borrarConParada(context)
         return ConversationHandler.END
 
     colectivos_mensaje = dataParada(numero_parada)
@@ -80,5 +118,6 @@ def buscarParada(update: Update, context: CallbackContext):
     context.bot.send_message(
         chat_id=update.effective_chat.id, text=colectivos_mensaje)
 
-    context.user_data.clear()
+    borrarConParada(context)
+    context.user_data['ultima'] = numero_parada
     return ConversationHandler.END

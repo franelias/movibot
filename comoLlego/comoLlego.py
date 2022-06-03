@@ -10,6 +10,15 @@ movi_url = os.getenv("MOVI_URL", default="")
 logger = logging.getLogger(__name__)
 
 
+def borrarConParada(context: CallbackContext):
+    parada = None
+    if 'ultima' in context.user_data:
+        parada = context.user_data['ultima']
+
+    context.user_data.clear()
+    context.user_data['ultima'] = parada
+
+
 def buscarCalle(calles: str):
     try:
         calles = requests.get(f"{movi_url}/geojson/ubicaciones",
@@ -106,7 +115,7 @@ def ingresoOrigen(update: Update, context: CallbackContext):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text="No se encontró el lugar de origen. Intentá de nuevo:", reply_markup=ReplyKeyboardRemove())
 
-            context.user_data.clear()
+            borrarConParada(context)
 
             return ORIGEN
 
@@ -141,7 +150,7 @@ def ingresoOrigen(update: Update, context: CallbackContext):
         context.bot.send_message(
             chat_id=update.effective_chat.id, text="Hubo un error al comunicarse con el servidor Movi.", reply_markup=ReplyKeyboardRemove())
 
-        context.user_data.clear()
+        borrarConParada(context)
         return ConversationHandler.END
 
     context.user_data['origen'] = {
@@ -164,7 +173,7 @@ def ingresoDestino(update: Update, context: CallbackContext):
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text="No se encontró el lugar de destino. Intentá de nuevo:", reply_markup=ReplyKeyboardRemove())
 
-            context.user_data.clear()
+            borrarConParada(context)
 
             return DESTINO
 
@@ -198,7 +207,7 @@ def ingresoDestino(update: Update, context: CallbackContext):
         context.bot.send_message(
             chat_id=update.effective_chat.id, text="Hubo un error al comunicarse con el servidor Movi.", reply_markup=ReplyKeyboardRemove())
 
-        context.user_data.clear()
+        borrarConParada(context)
         return ConversationHandler.END
 
     context.user_data['destino'] = {
@@ -226,7 +235,7 @@ def ingresoCantidadCuadras(update: Update, context: CallbackContext):
         context.bot.send_message(
             chat_id=update.effective_chat.id, text="Hubo un error al comunicarse con el servidor Movi.", reply_markup=ReplyKeyboardRemove())
 
-        context.user_data.clear()
+        borrarConParada(context)
         return ConversationHandler.END
 
     context.user_data['paradas_coordenadas'] = paradas_coordenadas
@@ -253,7 +262,7 @@ def buscarUbicacion(update: Update, context: CallbackContext):
     context.bot.sendLocation(
         chat_id=update.effective_chat.id, latitude=latitud, longitude=longitud, reply_markup=ReplyKeyboardRemove())
 
-    context.user_data.clear()
+    borrarConParada(context)
     return ConversationHandler.END
 
 
@@ -261,6 +270,6 @@ def finalizarIngreso(update: Update, context: CallbackContext):
     context.bot.send_message(
         chat_id=update.effective_chat.id, text="Operación cancelada.", reply_markup=ReplyKeyboardRemove())
 
-    context.user_data.clear()
+    borrarConParada(context)
 
     return ConversationHandler.END

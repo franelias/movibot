@@ -13,7 +13,7 @@ from cuandoLlega.cuandoLlega import (DETALLES, PARADA, buscarParadas,
                                      colectivoEnParada, cuandoLlega)
 from errores.errores import error_handler
 from feedback.feedback import MANDAR, empezarFeedback, enviarFeedback
-from paradas.paradas import BUSCAR_PARADA, buscarParada, parada
+from paradas.paradas import BUSCAR_PARADA, buscarParada, parada, ultima
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -36,6 +36,8 @@ def main():
         },
         fallbacks=[CommandHandler('cancelar', finalizarIngreso)],
     )
+
+    ultima_parada_handler = CommandHandler('ultima', ultima)
 
     comollego_handler = ConversationHandler(
         entry_points=[CommandHandler('comollego', comoLlego)],
@@ -69,6 +71,7 @@ def main():
 
     updater.dispatcher.add_handler(CommandHandler('start', start))
     updater.dispatcher.add_handler(parada_handler)
+    updater.dispatcher.add_handler(ultima_parada_handler)
     updater.dispatcher.add_handler(cuandollega_handler)
     updater.dispatcher.add_handler(comollego_handler)
     updater.dispatcher.add_handler(feedback_handler)
