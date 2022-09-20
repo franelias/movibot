@@ -12,6 +12,7 @@ BUSCAR_PARADA = range(1)
 movi_url = os.getenv("MOVI_URL", default="")
 logger = logging.getLogger(__name__)
 
+ultimas = {}
 
 def dataParada(numero_parada: int, nombre_colectivo: str = None):
     data = requests.get(f"{movi_url}/cuandollega", params={
@@ -67,7 +68,7 @@ def parada(update: Update, context: CallbackContext):
             numero_parada = int(numero_parada)
 
             colectivos_mensaje = dataParada(numero_parada)
-            context.user_data['ultima'] = numero_parada
+            ultimas[update.effective_chat.id] = numero_parada
 
             context.bot.send_message(
                 chat_id=update.effective_chat.id, text=colectivos_mensaje)
@@ -89,13 +90,13 @@ def parada(update: Update, context: CallbackContext):
 
 
 def ultima(update: Update, context: CallbackContext):
-    if 'ultima' not in context.user_data:
+    if update.effective_chat.id not in ultimas:
         context.bot.send_message(
             chat_id=update.effective_chat.id, text="No hay última parada")
 
         return
 
-    colectivos_mensaje = dataParada(context.user_data['ultima'])
+    colectivos_mensaje = dataParada(ultimas[update.effective_chat.id])
 
     context.bot.send_message(
         chat_id=update.effective_chat.id, text=colectivos_mensaje)
@@ -119,5 +120,5 @@ def buscarParada(update: Update, context: CallbackContext):
         chat_id=update.effective_chat.id, text=colectivos_mensaje)
 
     borrarConParada(context)
-    context.user_data['ultima'] = numero_parada
+    ultimas[update.effective_chat.id] = numero_parada
     return ConversationHandler.END
